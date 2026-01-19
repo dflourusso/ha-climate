@@ -8,6 +8,7 @@ from homeassistant.components.climate.const import (
     FAN_MEDIUM,
     FAN_HIGH,
     FAN_AUTO,
+    FAN_FOCUS,
 )
 from homeassistant.const import UnitOfTemperature
 
