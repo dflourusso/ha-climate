@@ -7,6 +7,7 @@ from homeassistant.components.climate.const import (
     FAN_LOW,
     FAN_MEDIUM,
     FAN_HIGH,
+    FAN_AUTO,
 )
 from homeassistant.const import UnitOfTemperature
 
@@ -50,6 +51,7 @@ class ClimateBroadlink(ClimateEntity, RestoreEntity):
             FAN_LOW,
             FAN_MEDIUM,
             FAN_HIGH,
+            FAN_AUTO,
         ]
 
     # --------------------------------------------------
@@ -106,6 +108,10 @@ class ClimateBroadlink(ClimateEntity, RestoreEntity):
                 return float(s.state)
             except Exception:
                 return None
+    
+    @property
+    def target_temperature_step(self):
+        return 1
 
     # --------------------------------------------------
     # SINCRONIZAÇÃO SENSOR
@@ -166,7 +172,8 @@ class ClimateBroadlink(ClimateEntity, RestoreEntity):
                 FAN_LOW: "low",
                 FAN_MEDIUM: "medium",
                 FAN_HIGH: "high",
-            }.get(self._fan_mode, "low")
+                FAN_AUTO: "auto",
+            }.get(self._fan_mode, "auto")
 
             mode = self._hvac_mode
 
