@@ -25,12 +25,14 @@ class ClimateBroadlinkConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 selector.EntitySelectorConfig(domain="remote")
             ),
 
-            vol.Required("remote"): selector.EntitySelector(
-                selector.EntitySelectorConfig(domain="remote")
-            ),
+            vol.Required("remote"): str,
 
             vol.Optional("temp_sensor"): selector.EntitySelector(
                 selector.EntitySelectorConfig(domain="sensor")
+            ),
+
+             vol.Optional("power_sensor"): selector.EntitySelector(
+                selector.EntitySelectorConfig(domain="binary_sensor")
             ),
         })
 

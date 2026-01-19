@@ -18,15 +18,18 @@ class ClimateBroadlink(ClimateEntity, RestoreEntity):
     def __init__(self, hass, config):
         self.hass = hass
 
-        # ---------- VARIÁVEIS DO YAML ----------
+        # ---------- VARIÁVEIS DA CONFIG ----------
         self._nome = config.get("name")
         self._controller = config.get("controller")
         self._remote = config.get("remote")
         self._sensor_temp = config.get("temp_sensor")
 
+        # 👉 NOVO: sensor que indica se o ar está ligado fisicamente
+        self._sensor_power = config.get("power_sensor")
+
         if not self._controller or not self._remote:
             _LOGGER.error(
-                "ClimateBroadlink [%s] precisa de 'controller' e 'remote' no YAML",
+                "ClimateBroadlink [%s] precisa de 'controller' e 'remote'",
                 self._nome
             )
 
@@ -57,7 +60,7 @@ class ClimateBroadlink(ClimateEntity, RestoreEntity):
         ]
 
     # ======================================================
-    # RESTAURAR ESTADO APÓS REBOOT
+    # INICIALIZAÇÃO E RESTORE
     # ======================================================
 
     async def async_added_to_hass(self):
@@ -65,14 +68,8 @@ class ClimateBroadlink(ClimateEntity, RestoreEntity):
 
         if last:
             self._hvac_mode = last.state
-
-            self._target_temperature = last.attributes.get(
-                "temperature", 24
-            )
-
-            self._fan_mode = last.attributes.get(
-                "fan_mode", FAN_LOW
-            )
+            self._target_temperature = last.attributes.get("temperature", 24)
+            self._fan_mode = last.attributes.get("fan_mode", FAN_LOW)
 
             _LOGGER.info(
                 "ClimateBroadlink [%s] restaurado: %s %s° fan:%s",
@@ -81,6 +78,21 @@ class ClimateBroadlink(ClimateEntity, RestoreEntity):
                 self._target_temperature,
                 self._fan_mode,
             )
+
+        # 👉 MONITORAR SENSOR FÍSICO (opcional)
+        if self._sensor_power:
+            async def sensor_changed(event):
+                await self._atualizar_pelo_sensor()
+
+            self.async_on_remove(
+                self.hass.helpers.event.async_track_state_change_event(
+                    self._sensor_power,
+                    sensor_changed
+                )
+            )
+
+            # sincroniza logo na inicialização
+            await self._atualizar_pelo_sensor()
 
     # ======================================================
     # PROPRIEDADES
@@ -111,6 +123,32 @@ class ClimateBroadlink(ClimateEntity, RestoreEntity):
                 return None
 
     # ======================================================
+    # SINCRONIZAÇÃO PELO SENSOR FÍSICO
+    # ======================================================
+
+    async def _atualizar_pelo_sensor(self):
+        s = self.hass.states.get(self._sensor_power)
+        if not s:
+            return
+
+        ligado = s.state in ["on", "true", "ligado"]
+
+        # Desligado fisicamente
+        if not ligado and self._hvac_mode != HVACMode.OFF:
+            _LOGGER.info("[%s] Detectado DESLIGADO pelo sensor físico", self._nome)
+            self._hvac_mode = HVACMode.OFF
+            self.async_write_ha_state()
+            return
+
+        # Ligado fisicamente mas HA achava que estava off
+        if ligado and self._hvac_mode == HVACMode.OFF:
+            _LOGGER.info("[%s] Detectado LIGADO pelo controle físico", self._nome)
+
+            # assume último modo conhecido ou COOL
+            self._hvac_mode = HVACMode.COOL
+            self.async_write_ha_state()
+
+    # ======================================================
     # COMANDOS
     # ======================================================
 
@@ -124,8 +162,6 @@ class ClimateBroadlink(ClimateEntity, RestoreEntity):
 
         self.async_write_ha_state()
 
-    # ------------------------------------------------------
-
     async def async_set_temperature(self, **kwargs):
         temp = int(kwargs.get("temperature"))
         self._target_temperature = temp
@@ -133,8 +169,6 @@ class ClimateBroadlink(ClimateEntity, RestoreEntity):
         await self._enviar_combinado()
 
         self.async_write_ha_state()
-
-    # ------------------------------------------------------
 
     async def async_set_fan_mode(self, fan_mode):
         self._fan_mode = fan_mode
@@ -144,16 +178,10 @@ class ClimateBroadlink(ClimateEntity, RestoreEntity):
         self.async_write_ha_state()
 
     # ======================================================
-    # LÓGICA DE MONTAGEM DO NOME IR
+    # MONTAGEM DO COMANDO IR
     # ======================================================
 
     async def _enviar_combinado(self):
-        """
-        Monta chave no padrão:
-        cool_low_23
-        heat_high_22
-        """
-
         if self._hvac_mode == HVACMode.OFF:
             chave = "off"
         else:
@@ -170,10 +198,17 @@ class ClimateBroadlink(ClimateEntity, RestoreEntity):
         await self._enviar(chave)
 
     # ======================================================
-    # ENVIO PARA O BROADLINK
+    # ENVIO PARA BROADLINK
     # ======================================================
 
     async def _enviar(self, comando):
+
+        # 👉 Evita IR desnecessário se o sensor já confirma desligado
+        if self._sensor_power:
+            s = self.hass.states.get(self._sensor_power)
+            if s and comando == "off" and s.state == "off":
+                _LOGGER.info("[%s] Ignorando OFF, já desligado fisicamente", self._nome)
+                return
 
         if not self._controller:
             _LOGGER.error(
@@ -195,19 +230,3 @@ class ClimateBroadlink(ClimateEntity, RestoreEntity):
             "send_command",
             {
                 "entity_id": self._controller,
-                "device": self._remote,
-                "command": comando
-            },
-            blocking=True,
-        )
-
-
-# ==========================================================
-
-async def async_setup_entry(hass, entry, async_add_entities):
-
-    config = entry.data
-
-    async_add_entities([
-        ClimateBroadlink(hass, config)
-    ])
