@@ -8,7 +8,8 @@ from homeassistant.components.climate.const import (
     FAN_MEDIUM,
     FAN_HIGH,
 )
-from homeassistant.const import TEMP_CELSIUS
+from homeassistant.const import UnitOfTemperature
+
 from homeassistant.helpers.restore_state import RestoreEntity
 
 _LOGGER = logging.getLogger(__name__)
@@ -32,7 +33,7 @@ class ClimateBroadlink(ClimateEntity, RestoreEntity):
         self._attr_name = self._name
         self._attr_unique_id = f"climate_broadlink_{self._name}"
 
-        self._attr_temperature_unit = TEMP_CELSIUS
+        self._attr_temperature_unit = UnitOfTemperature.CELSIUS
 
         self._attr_supported_features = (
             ClimateEntityFeature.TARGET_TEMPERATURE |
