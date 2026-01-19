@@ -204,9 +204,10 @@ class ClimateBroadlink(ClimateEntity, RestoreEntity):
 
 # ==========================================================
 
-async def async_setup_platform(
-    hass, config, async_add_entities, discovery_info=None
-):
+async def async_setup_entry(hass, entry, async_add_entities):
+
+    config = entry.data
+
     async_add_entities([
         ClimateBroadlink(hass, config)
     ])
