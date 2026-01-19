@@ -5,7 +5,7 @@
   "render_readme": true,
   "filename": "climate_broadklink.zip",
   "domains": [
-    "climate"
+    "climate_broadlink"
   ],
   "iot_class": "Local Polling"
 }
