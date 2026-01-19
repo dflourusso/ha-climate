@@ -28,11 +28,13 @@ class ClimateBroadlinkConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             vol.Required("remote"): str,
 
             vol.Required("hvac_modes", default=[
+                HVACMode.OFF,
                 HVACMode.COOL,
                 HVACMode.HEAT,
             ]): selector.SelectSelector(
                 selector.SelectSelectorConfig(
                     options=[
+                        HVACMode.OFF,
                         HVACMode.COOL,
                         HVACMode.HEAT,
                         HVACMode.DRY,
