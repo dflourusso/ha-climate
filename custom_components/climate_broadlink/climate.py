@@ -41,18 +41,22 @@ class ClimateBroadlink(ClimateEntity, RestoreEntity):
             ClimateEntityFeature.FAN_MODE
         )
 
-        self._attr_hvac_modes = [
+        self._attr_hvac_modes = config.get("hvac_modes", [
             HVACMode.OFF,
             HVACMode.COOL,
             HVACMode.HEAT,
-        ]
+            HVACMode.AUTO,
+            HVACMode.DRY,
+            HVACMode.FAN_ONLY,
+        ])
 
-        self._attr_fan_modes = [
+        self._attr_fan_modes = config.get("fan_modes", [
             FAN_LOW,
             FAN_MEDIUM,
             FAN_HIGH,
             FAN_AUTO,
-        ]
+            FAN_FOCUS,
+        ])
 
     # --------------------------------------------------
     # RESTORE
@@ -62,9 +66,12 @@ class ClimateBroadlink(ClimateEntity, RestoreEntity):
         last = await self.async_get_last_state()
 
         if last:
-            self._hvac_mode = last.state
-            self._target_temperature = last.attributes.get("temperature", 24)
-            self._fan_mode = last.attributes.get("fan_mode", FAN_LOW)
+            try:
+                self._hvac_mode = HVACMode(last.state)
+                self._target_temperature = last.attributes.get("temperature", 24)
+                self._fan_mode = last.attributes.get("fan_mode", FAN_LOW)
+            except Exception:
+                self._hvac_mode = HVACMode.OFF
 
         # Monitorar sensor físico
         if self._sensor_power:
@@ -122,16 +129,26 @@ class ClimateBroadlink(ClimateEntity, RestoreEntity):
         if not s:
             return
 
-        ligado = s.state in ["on", "true", "ligado"]
+        aberto = s.state in ["on", "true", "ligado"]
 
-        if not ligado and self._hvac_mode != HVACMode.OFF:
+        modo_atual = self._hvac_mode
+
+        # 1) Ar ligado no HA e sensor FECHOU → DESLIGAR
+        if modo_atual != HVACMode.OFF and not aberto:
             self._hvac_mode = HVACMode.OFF
             self.async_write_ha_state()
             return
 
-        if ligado and self._hvac_mode == HVACMode.OFF:
+        # 2) Ar desligado no HA e sensor ABRIU → LIGAR COMO COOL
+        if modo_atual == HVACMode.OFF and aberto:
             self._hvac_mode = HVACMode.COOL
             self.async_write_ha_state()
+            return
+
+        # 3) OFF + fechado → nada
+        # 4) != OFF + aberto → nada
+        return
+
 
     # --------------------------------------------------
     # COMANDOS
@@ -173,9 +190,10 @@ class ClimateBroadlink(ClimateEntity, RestoreEntity):
                 FAN_MEDIUM: "medium",
                 FAN_HIGH: "high",
                 FAN_AUTO: "auto",
+                FAN_FOCUS: "focus",
             }.get(self._fan_mode, "auto")
 
-            mode = self._hvac_mode
+            mode = str(self._hvac_mode).lower()
 
             key = f"{mode}_{fan}_{self._target_temperature}"
 
