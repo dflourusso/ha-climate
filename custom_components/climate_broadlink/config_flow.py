@@ -2,7 +2,7 @@ import voluptuous as vol
 from homeassistant import config_entries
 from homeassistant.core import callback
 from homeassistant.helpers import selector
-from homeassistant.components.climate.const import HVACMode, FAN_LOW, FAN_MEDIUM, FAN_HIGH, FAN_AUTO
+from homeassistant.components.climate.const import HVACMode, FAN_LOW, FAN_MEDIUM, FAN_HIGH, FAN_AUTO, FAN_FOCUS
 
 from .const import DOMAIN
 
@@ -40,7 +40,7 @@ class ClimateBroadlinkConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                         HVACMode.AUTO,
                     ],
                     multiple=True,
-                    mode=selector.SelectSelectorMode.DROPDOWN,
+                    mode="dropdown",
                 )
             ),
   
@@ -58,6 +58,7 @@ class ClimateBroadlinkConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                         FAN_FOCUS,
                     ],
                     multiple=True,
+                    mode="dropdown",
                 )
             ),
 
