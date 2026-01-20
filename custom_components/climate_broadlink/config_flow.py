@@ -49,10 +49,11 @@ class ClimateBroadlinkConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
             vol.Required(
                 "hvac_modes",
-                default=[HVACMode.COOL, HVACMode.HEAT],
+                default=[HVACMode.OFF, HVACMode.COOL, HVACMode.HEAT],
             ): selector.SelectSelector(
                 selector.SelectSelectorConfig(
                     options=[
+                        HVACMode.OFF,
                         HVACMode.COOL,
                         HVACMode.HEAT,
                         HVACMode.DRY,
@@ -140,6 +141,7 @@ class ClimateBroadlinkOptionsFlow(config_entries.OptionsFlow):
             ): selector.SelectSelector(
                 selector.SelectSelectorConfig(
                     options=[
+                        HVACMode.OFF,
                         HVACMode.COOL,
                         HVACMode.HEAT,
                         HVACMode.DRY,
