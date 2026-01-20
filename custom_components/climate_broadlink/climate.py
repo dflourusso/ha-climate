@@ -34,11 +34,9 @@ class ClimateBroadlink(ClimateEntity, RestoreEntity):
         self._fan_mode = FAN_LOW
         self._target_temperature = 24
 
-        # 🧠 Proteções contra loop
         self._booting = True
         self._updating_from_sensor = False
 
-        # 🆕 debounce inteligente
         self._pending_sync_unsub = None
 
         self._attr_name = self._name
@@ -68,11 +66,9 @@ class ClimateBroadlink(ClimateEntity, RestoreEntity):
             except Exception:
                 self._hvac_mode = HVACMode.OFF
 
-        # Esperar HA estabilizar
         await asyncio.sleep(2)
         self._booting = False
 
-        # --- MONITOR POWER SENSOR ---
         if self._sensor_power:
 
             async def sensor_changed(event):
@@ -88,7 +84,6 @@ class ClimateBroadlink(ClimateEntity, RestoreEntity):
 
             await self._schedule_sensor_sync()
 
-        # --- MONITOR TEMPERATURE SENSOR ---
         if self._sensor_temp:
 
             async def temp_changed(event):
@@ -135,24 +130,24 @@ class ClimateBroadlink(ClimateEntity, RestoreEntity):
                 return None
 
     # --------------------------------------------------
-    # 🧠 DEBOUNCE INTELIGENTE
+    # DEBOUNCE
     # --------------------------------------------------
 
     async def _schedule_sensor_sync(self):
-        """Agenda sincronização, sempre mantendo apenas a última."""
         if self._booting:
             return
 
-        # Cancela sync pendente se existir
         if self._pending_sync_unsub:
             self._pending_sync_unsub()
             self._pending_sync_unsub = None
 
-        # Agenda para daqui 1 segundo
+        async def _run(_now):
+            await self._safe_sensor_sync()
+
         self._pending_sync_unsub = async_call_later(
             self.hass,
             1.0,
-            lambda _now: asyncio.create_task(self._safe_sensor_sync())
+            _run
         )
 
     async def _safe_sensor_sync(self):
@@ -167,7 +162,7 @@ class ClimateBroadlink(ClimateEntity, RestoreEntity):
             self._pending_sync_unsub = None
 
     # --------------------------------------------------
-    # SINCRONIZAÇÃO REAL
+    # SINCRONIZAÇÃO
     # --------------------------------------------------
 
     async def _sync_from_sensor(self):
@@ -180,11 +175,9 @@ class ClimateBroadlink(ClimateEntity, RestoreEntity):
 
         novo = None
 
-        # 1) Ar ligado no HA e sensor FECHOU → DESLIGAR
         if modo_atual != HVACMode.OFF and not aberto:
             novo = HVACMode.OFF
 
-        # 2) Ar desligado no HA e sensor ABRIU → LIGAR COMO COOL
         elif modo_atual == HVACMode.OFF and aberto:
             novo = HVACMode.COOL
 
@@ -231,7 +224,7 @@ class ClimateBroadlink(ClimateEntity, RestoreEntity):
         self.async_write_ha_state()
 
     # --------------------------------------------------
-    # MONTAGEM IR
+    # IR
     # --------------------------------------------------
 
     async def _send_combined(self):
@@ -246,14 +239,10 @@ class ClimateBroadlink(ClimateEntity, RestoreEntity):
                 FAN_FOCUS: "focus",
             }.get(self._fan_mode, "auto")
 
-            mode = str(self._hvac_mode).lower()
+            mode = self._hvac_mode.value.lower()
             key = f"{mode}_{fan}_{self._target_temperature}"
 
         await self._send(key)
-
-    # --------------------------------------------------
-    # ENVIO BROADLINK
-    # --------------------------------------------------
 
     async def _send(self, command):
 
@@ -281,10 +270,6 @@ class ClimateBroadlink(ClimateEntity, RestoreEntity):
             blocking=True,
         )
 
-
-# ------------------------------------------------------
-# SETUP
-# ------------------------------------------------------
 
 async def async_setup_entry(hass, entry, async_add_entities):
     config = {**entry.data, **entry.options}
