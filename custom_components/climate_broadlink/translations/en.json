@@ -1,0 +1,31 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Add Broadlink Air Conditioner",
+        "data": {
+          "name": "Name",
+          "controller": "Broadlink Controller",
+          "remote": "IR Device Name",
+          "hvac_modes": "Available modes",
+          "fan_modes": "Fan speeds",
+          "temp_sensor": "Temperature sensor",
+          "power_sensor": "Power / door sensor"
+        }
+      }
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Air conditioner options",
+        "data": {
+          "hvac_modes": "Available modes",
+          "fan_modes": "Fan speeds",
+          "temp_sensor": "Temperature sensor",
+          "power_sensor": "Power / door sensor"
+        }
+      }
+    }
+  }
+}
