@@ -31,7 +31,7 @@ class ClimateBroadlink(ClimateEntity, RestoreEntity):
         self._sensor_power = config.get("power_sensor")
 
         self._hvac_mode = HVACMode.OFF
-        self._fan_mode = FAN_LOW
+        self._fan_mode = FAN_AUTO
         self._target_temperature = 24
 
         # Proteções contra loop
@@ -62,7 +62,7 @@ class ClimateBroadlink(ClimateEntity, RestoreEntity):
             try:
                 self._hvac_mode = HVACMode(last.state)
                 self._target_temperature = last.attributes.get("temperature", 24)
-                self._fan_mode = last.attributes.get("fan_mode", FAN_LOW)
+                self._fan_mode = last.attributes.get("fan_mode", FAN_AUTO)
             except Exception:
                 self._hvac_mode = HVACMode.OFF
 
