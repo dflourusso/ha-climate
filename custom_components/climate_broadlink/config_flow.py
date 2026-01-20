@@ -19,8 +19,6 @@ class ClimateBroadlinkConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     VERSION = 1
 
     async def async_step_user(self, user_input=None):
-        errors = {}
-
         if user_input is not None:
             data = user_input.copy()
 
@@ -76,17 +74,17 @@ class ClimateBroadlinkConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 )
             ),
 
-            vol.Optional("temp_sensor"): vol.Any(
-                "",
-                selector.EntitySelector(
-                    selector.EntitySelectorConfig(domain="sensor")
+            vol.Optional("temp_sensor"): selector.EntitySelector(
+                selector.EntitySelectorConfig(
+                    domain="sensor",
+                    allow_none=True,
                 )
             ),
 
-            vol.Optional("power_sensor"): vol.Any(
-                "",
-                selector.EntitySelector(
-                    selector.EntitySelectorConfig(domain="binary_sensor")
+            vol.Optional("power_sensor"): selector.EntitySelector(
+                selector.EntitySelectorConfig(
+                    domain="binary_sensor",
+                    allow_none=True,
                 )
             ),
         })
@@ -94,7 +92,6 @@ class ClimateBroadlinkConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         return self.async_show_form(
             step_id="user",
             data_schema=schema,
-            errors=errors,
         )
 
     @staticmethod
@@ -174,21 +171,21 @@ class ClimateBroadlinkOptionsFlow(config_entries.OptionsFlow):
 
             vol.Optional(
                 "temp_sensor",
-                default=options.get("temp_sensor") or "",
-            ): vol.Any(
-                "",
-                selector.EntitySelector(
-                    selector.EntitySelectorConfig(domain="sensor")
+                default=options.get("temp_sensor"),
+            ): selector.EntitySelector(
+                selector.EntitySelectorConfig(
+                    domain="sensor",
+                    allow_none=True,
                 )
             ),
 
             vol.Optional(
                 "power_sensor",
-                default=options.get("power_sensor") or "",
-            ): vol.Any(
-                "",
-                selector.EntitySelector(
-                    selector.EntitySelectorConfig(domain="binary_sensor")
+                default=options.get("power_sensor"),
+            ): selector.EntitySelector(
+                selector.EntitySelectorConfig(
+                    domain="binary_sensor",
+                    allow_none=True,
                 )
             ),
         })
