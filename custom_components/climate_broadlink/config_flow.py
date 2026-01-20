@@ -1,5 +1,4 @@
 import voluptuous as vol
-from voluptuous import UNDEFINED
 
 from homeassistant import config_entries
 from homeassistant.core import callback
@@ -77,15 +76,15 @@ class ClimateBroadlinkConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 )
             ),
 
-            vol.Optional("temp_sensor", default=UNDEFINED): vol.Any(
-                None,
+            vol.Optional("temp_sensor"): vol.Any(
+                "",
                 selector.EntitySelector(
                     selector.EntitySelectorConfig(domain="sensor")
                 )
             ),
 
-            vol.Optional("power_sensor", default=UNDEFINED): vol.Any(
-                None,
+            vol.Optional("power_sensor"): vol.Any(
+                "",
                 selector.EntitySelector(
                     selector.EntitySelectorConfig(domain="binary_sensor")
                 )
@@ -175,9 +174,9 @@ class ClimateBroadlinkOptionsFlow(config_entries.OptionsFlow):
 
             vol.Optional(
                 "temp_sensor",
-                default=options.get("temp_sensor") or None,
+                default=options.get("temp_sensor") or "",
             ): vol.Any(
-                None,
+                "",
                 selector.EntitySelector(
                     selector.EntitySelectorConfig(domain="sensor")
                 )
@@ -185,9 +184,9 @@ class ClimateBroadlinkOptionsFlow(config_entries.OptionsFlow):
 
             vol.Optional(
                 "power_sensor",
-                default=options.get("power_sensor") or None,
+                default=options.get("power_sensor") or "",
             ): vol.Any(
-                None,
+                "",
                 selector.EntitySelector(
                     selector.EntitySelectorConfig(domain="binary_sensor")
                 )
