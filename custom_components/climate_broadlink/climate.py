@@ -14,6 +14,7 @@ from homeassistant.components.climate.const import (
 )
 from homeassistant.const import UnitOfTemperature
 from homeassistant.helpers.restore_state import RestoreEntity
+from homeassistant.helpers.event import async_track_state_change_event
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -74,10 +75,12 @@ class ClimateBroadlink(ClimateEntity, RestoreEntity):
             async def sensor_changed(event):
                 await self._safe_sensor_sync()
 
+            # ✅ FORMA CORRETA ATUAL
             self.async_on_remove(
-                self.hass.helpers.event.async_track_state_change_event(
-                    self._sensor_power,
-                    sensor_changed
+                async_track_state_change_event(
+                    self.hass,
+                    [self._sensor_power],
+                    sensor_changed,
                 )
             )
 
@@ -120,15 +123,12 @@ class ClimateBroadlink(ClimateEntity, RestoreEntity):
     # --------------------------------------------------
 
     async def _safe_sensor_sync(self):
-        # Evitar durante boot
         if self._booting:
             return
 
-        # Evitar reentrância
         if self._updating_from_sensor:
             return
 
-        # Debounce 2s
         if datetime.now() - self._last_sensor_sync < timedelta(seconds=2):
             return
 
@@ -149,11 +149,9 @@ class ClimateBroadlink(ClimateEntity, RestoreEntity):
 
         novo = None
 
-        # 1) Ar ligado no HA e sensor FECHOU → DESLIGAR
         if modo_atual != HVACMode.OFF and not aberto:
             novo = HVACMode.OFF
 
-        # 2) Ar desligado no HA e sensor ABRIU → LIGAR COMO COOL
         elif modo_atual == HVACMode.OFF and aberto:
             novo = HVACMode.COOL
 
