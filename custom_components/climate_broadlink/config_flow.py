@@ -1,4 +1,6 @@
 import voluptuous as vol
+from voluptuous import UNDEFINED
+
 from homeassistant import config_entries
 from homeassistant.core import callback
 from homeassistant.helpers import selector
@@ -21,9 +23,19 @@ class ClimateBroadlinkConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         errors = {}
 
         if user_input is not None:
+            # --- NORMALIZAÇÃO DOS CAMPOS OPCIONAIS ---
+            data = user_input.copy()
+
+            if not data.get("temp_sensor"):
+                data["temp_sensor"] = None
+
+            if not data.get("power_sensor"):
+                data["power_sensor"] = None
+            # ----------------------------------------
+
             return self.async_create_entry(
-                title=user_input["name"],
-                data=user_input
+                title=data["name"],
+                data=data,
             )
 
         schema = vol.Schema({
@@ -35,10 +47,10 @@ class ClimateBroadlinkConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
             vol.Required("remote"): str,
 
-            vol.Required("hvac_modes", default=[
-                HVACMode.COOL,
-                HVACMode.HEAT,
-            ]): selector.SelectSelector(
+            vol.Required(
+                "hvac_modes",
+                default=[HVACMode.COOL, HVACMode.HEAT],
+            ): selector.SelectSelector(
                 selector.SelectSelectorConfig(
                     options=[
                         HVACMode.COOL,
@@ -52,11 +64,10 @@ class ClimateBroadlinkConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 )
             ),
 
-            vol.Required("fan_modes", default=[
-                FAN_LOW,
-                FAN_MEDIUM,
-                FAN_HIGH,
-            ]): selector.SelectSelector(
+            vol.Required(
+                "fan_modes",
+                default=[FAN_LOW, FAN_MEDIUM, FAN_HIGH],
+            ): selector.SelectSelector(
                 selector.SelectSelectorConfig(
                     options=[
                         FAN_LOW,
@@ -70,11 +81,17 @@ class ClimateBroadlinkConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 )
             ),
 
-            vol.Optional("temp_sensor"): selector.EntitySelector(
+            vol.Optional(
+                "temp_sensor",
+                default=UNDEFINED,
+            ): selector.EntitySelector(
                 selector.EntitySelectorConfig(domain="sensor")
             ),
 
-            vol.Optional("power_sensor"): selector.EntitySelector(
+            vol.Optional(
+                "power_sensor",
+                default=UNDEFINED,
+            ): selector.EntitySelector(
                 selector.EntitySelectorConfig(domain="binary_sensor")
             ),
         })
@@ -82,10 +99,9 @@ class ClimateBroadlinkConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         return self.async_show_form(
             step_id="user",
             data_schema=schema,
-            errors=errors
+            errors=errors,
         )
 
-    # 👇 LIGAÇÃO COM OPTIONS FLOW
     @staticmethod
     @callback
     def async_get_options_flow(entry):
@@ -103,50 +119,71 @@ class ClimateBroadlinkOptionsFlow(config_entries.OptionsFlow):
 
     async def async_step_init(self, user_input=None):
         if user_input is not None:
-            return self.async_create_entry(title="", data=user_input)
+            # --- NORMALIZAÇÃO TAMBÉM NO OPTIONS ---
+            data = user_input.copy()
+
+            if not data.get("temp_sensor"):
+                data["temp_sensor"] = None
+
+            if not data.get("power_sensor"):
+                data["power_sensor"] = None
+            # --------------------------------------
+
+            return self.async_create_entry(title="", data=data)
 
         options = {**self.entry.data, **self.entry.options}
 
         schema = vol.Schema({
-            vol.Optional("hvac_modes", default=options.get("hvac_modes", [])):
-                selector.SelectSelector(
-                    selector.SelectSelectorConfig(
-                        options=[
-                            HVACMode.COOL,
-                            HVACMode.HEAT,
-                            HVACMode.DRY,
-                            HVACMode.FAN_ONLY,
-                            HVACMode.AUTO,
-                        ],
-                        multiple=True,
-                        mode="dropdown",
-                    )
-                ),
+            vol.Optional(
+                "hvac_modes",
+                default=options.get("hvac_modes", []),
+            ): selector.SelectSelector(
+                selector.SelectSelectorConfig(
+                    options=[
+                        HVACMode.COOL,
+                        HVACMode.HEAT,
+                        HVACMode.DRY,
+                        HVACMode.FAN_ONLY,
+                        HVACMode.AUTO,
+                    ],
+                    multiple=True,
+                    mode="dropdown",
+                )
+            ),
 
-            vol.Optional("fan_modes", default=options.get("fan_modes", [])):
-                selector.SelectSelector(
-                    selector.SelectSelectorConfig(
-                        options=[
-                            FAN_LOW,
-                            FAN_MEDIUM,
-                            FAN_HIGH,
-                            FAN_AUTO,
-                            FAN_FOCUS,
-                        ],
-                        multiple=True,
-                        mode="dropdown",
-                    )
-                ),
+            vol.Optional(
+                "fan_modes",
+                default=options.get("fan_modes", []),
+            ): selector.SelectSelector(
+                selector.SelectSelectorConfig(
+                    options=[
+                        FAN_LOW,
+                        FAN_MEDIUM,
+                        FAN_HIGH,
+                        FAN_AUTO,
+                        FAN_FOCUS,
+                    ],
+                    multiple=True,
+                    mode="dropdown",
+                )
+            ),
 
-            vol.Optional("temp_sensor", default=options.get("temp_sensor")):
-                selector.EntitySelector(
-                    selector.EntitySelectorConfig(domain="sensor")
-                ),
+            vol.Optional(
+                "temp_sensor",
+                default=options.get("temp_sensor") or UNDEFINED,
+            ): selector.EntitySelector(
+                selector.EntitySelectorConfig(domain="sensor")
+            ),
 
-            vol.Optional("power_sensor", default=options.get("power_sensor")):
-                selector.EntitySelector(
-                    selector.EntitySelectorConfig(domain="binary_sensor")
-                ),
+            vol.Optional(
+                "power_sensor",
+                default=options.get("power_sensor") or UNDEFINED,
+            ): selector.EntitySelector(
+                selector.EntitySelectorConfig(domain="binary_sensor")
+            ),
         })
 
-        return self.async_show_form(step_id="init", data_schema=schema)
+        return self.async_show_form(
+            step_id="init",
+            data_schema=schema,
+        )
