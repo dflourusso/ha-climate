@@ -271,3 +271,24 @@ class ClimateBroadlink(ClimateEntity, RestoreEntity):
         )
 
         await self.hass.services.async_call(
+            "remote",
+            "send_command",
+            {
+                "entity_id": self._controller,
+                "device": self._remote,
+                "command": command,
+            },
+            blocking=True,
+        )
+
+
+# ------------------------------------------------------
+# SETUP
+# ------------------------------------------------------
+
+async def async_setup_entry(hass, entry, async_add_entities):
+    config = {**entry.data, **entry.options}
+
+    async_add_entities([
+        ClimateBroadlink(hass, config)
+    ])
