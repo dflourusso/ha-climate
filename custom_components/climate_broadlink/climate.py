@@ -1,6 +1,6 @@
 import logging
 import asyncio
-from datetime import datetime, timedelta
+from datetime import datetime
 
 from homeassistant.components.climate import ClimateEntity
 from homeassistant.components.climate.const import (
@@ -14,8 +14,7 @@ from homeassistant.components.climate.const import (
 )
 from homeassistant.const import UnitOfTemperature
 from homeassistant.helpers.restore_state import RestoreEntity
-
-from homeassistant.helpers.event import async_track_state_change_event
+from homeassistant.helpers.event import async_track_state_change_event, async_call_later
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -38,7 +37,9 @@ class ClimateBroadlink(ClimateEntity, RestoreEntity):
         # 🧠 Proteções contra loop
         self._booting = True
         self._updating_from_sensor = False
-        self._last_sensor_sync = datetime.min
+
+        # 🆕 debounce inteligente
+        self._pending_sync_unsub = None
 
         self._attr_name = self._name
         self._attr_unique_id = f"climate_broadlink_{self._name}"
@@ -75,7 +76,7 @@ class ClimateBroadlink(ClimateEntity, RestoreEntity):
         if self._sensor_power:
 
             async def sensor_changed(event):
-                await self._safe_sensor_sync()
+                await self._schedule_sensor_sync()
 
             self.async_on_remove(
                 async_track_state_change_event(
@@ -85,13 +86,12 @@ class ClimateBroadlink(ClimateEntity, RestoreEntity):
                 )
             )
 
-            await self._safe_sensor_sync()
+            await self._schedule_sensor_sync()
 
-        # --- 🟢 MONITOR TEMPERATURE SENSOR ---
+        # --- MONITOR TEMPERATURE SENSOR ---
         if self._sensor_temp:
 
             async def temp_changed(event):
-                # Atualiza apenas exibição
                 self.async_write_ha_state()
 
             self.async_on_remove(
@@ -135,25 +135,40 @@ class ClimateBroadlink(ClimateEntity, RestoreEntity):
                 return None
 
     # --------------------------------------------------
-    # 🧠 SINCRONIZAÇÃO SEGURA (POWER SENSOR)
+    # 🧠 DEBOUNCE INTELIGENTE
     # --------------------------------------------------
 
-    async def _safe_sensor_sync(self):
+    async def _schedule_sensor_sync(self):
+        """Agenda sincronização, sempre mantendo apenas a última."""
         if self._booting:
             return
 
-        if self._updating_from_sensor:
-            return
+        # Cancela sync pendente se existir
+        if self._pending_sync_unsub:
+            self._pending_sync_unsub()
+            self._pending_sync_unsub = None
 
-        if datetime.now() - self._last_sensor_sync < timedelta(seconds=2):
+        # Agenda para daqui 1 segundo
+        self._pending_sync_unsub = async_call_later(
+            self.hass,
+            1.0,
+            lambda _now: asyncio.create_task(self._safe_sensor_sync())
+        )
+
+    async def _safe_sensor_sync(self):
+        if self._updating_from_sensor:
             return
 
         try:
             self._updating_from_sensor = True
             await self._sync_from_sensor()
         finally:
-            self._last_sensor_sync = datetime.now()
             self._updating_from_sensor = False
+            self._pending_sync_unsub = None
+
+    # --------------------------------------------------
+    # SINCRONIZAÇÃO REAL
+    # --------------------------------------------------
 
     async def _sync_from_sensor(self):
         s = self.hass.states.get(self._sensor_power)
@@ -256,24 +271,3 @@ class ClimateBroadlink(ClimateEntity, RestoreEntity):
         )
 
         await self.hass.services.async_call(
-            "remote",
-            "send_command",
-            {
-                "entity_id": self._controller,
-                "device": self._remote,
-                "command": command,
-            },
-            blocking=True,
-        )
-
-
-# ------------------------------------------------------
-# SETUP
-# ------------------------------------------------------
-
-async def async_setup_entry(hass, entry, async_add_entities):
-    config = {**entry.data, **entry.options}
-
-    async_add_entities([
-        ClimateBroadlink(hass, config)
-    ])
