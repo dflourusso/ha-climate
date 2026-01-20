@@ -1,4 +1,6 @@
 import logging
+import asyncio
+from datetime import datetime, timedelta
 
 from homeassistant.components.climate import ClimateEntity
 from homeassistant.components.climate.const import (
@@ -11,7 +13,6 @@ from homeassistant.components.climate.const import (
     FAN_FOCUS,
 )
 from homeassistant.const import UnitOfTemperature
-
 from homeassistant.helpers.restore_state import RestoreEntity
 
 _LOGGER = logging.getLogger(__name__)
@@ -32,9 +33,13 @@ class ClimateBroadlink(ClimateEntity, RestoreEntity):
         self._fan_mode = FAN_LOW
         self._target_temperature = 24
 
+        # 🧠 PROTEÇÕES CONTRA LOOP
+        self._booting = True
+        self._updating_from_sensor = False
+        self._last_sensor_sync = datetime.min
+
         self._attr_name = self._name
         self._attr_unique_id = f"climate_broadlink_{self._name}"
-
         self._attr_temperature_unit = UnitOfTemperature.CELSIUS
 
         self._attr_supported_features = (
@@ -42,22 +47,8 @@ class ClimateBroadlink(ClimateEntity, RestoreEntity):
             ClimateEntityFeature.FAN_MODE
         )
 
-        self._attr_hvac_modes = config.get("hvac_modes", [
-            HVACMode.OFF,
-            HVACMode.COOL,
-            HVACMode.HEAT,
-            HVACMode.AUTO,
-            HVACMode.DRY,
-            HVACMode.FAN_ONLY,
-        ])
-
-        self._attr_fan_modes = config.get("fan_modes", [
-            FAN_LOW,
-            FAN_MEDIUM,
-            FAN_HIGH,
-            FAN_AUTO,
-            FAN_FOCUS,
-        ])
+        self._attr_hvac_modes = config.get("hvac_modes", [])
+        self._attr_fan_modes = config.get("fan_modes", [])
 
     # --------------------------------------------------
     # RESTORE
@@ -74,11 +65,14 @@ class ClimateBroadlink(ClimateEntity, RestoreEntity):
             except Exception:
                 self._hvac_mode = HVACMode.OFF
 
-        # Monitorar sensor físico
+        # 🕐 Esperar o HA estabilizar
+        await asyncio.sleep(2)
+        self._booting = False
+
         if self._sensor_power:
 
             async def sensor_changed(event):
-                await self._sync_from_sensor()
+                await self._safe_sensor_sync()
 
             self.async_on_remove(
                 self.hass.helpers.event.async_track_state_change_event(
@@ -87,7 +81,7 @@ class ClimateBroadlink(ClimateEntity, RestoreEntity):
                 )
             )
 
-            await self._sync_from_sensor()
+            await self._safe_sensor_sync()
 
     # --------------------------------------------------
     # PROPRIEDADES
@@ -106,6 +100,10 @@ class ClimateBroadlink(ClimateEntity, RestoreEntity):
         return self._target_temperature
 
     @property
+    def target_temperature_step(self):
+        return 1
+
+    @property
     def current_temperature(self):
         if not self._sensor_temp:
             return None
@@ -116,14 +114,30 @@ class ClimateBroadlink(ClimateEntity, RestoreEntity):
                 return float(s.state)
             except Exception:
                 return None
-    
-    @property
-    def target_temperature_step(self):
-        return 1
 
     # --------------------------------------------------
-    # SINCRONIZAÇÃO SENSOR
+    # 🧠 SINCRONIZAÇÃO SEGURA
     # --------------------------------------------------
+
+    async def _safe_sensor_sync(self):
+        # Evitar durante boot
+        if self._booting:
+            return
+
+        # Evitar reentrância
+        if self._updating_from_sensor:
+            return
+
+        # Debounce 2s
+        if datetime.now() - self._last_sensor_sync < timedelta(seconds=2):
+            return
+
+        try:
+            self._updating_from_sensor = True
+            await self._sync_from_sensor()
+        finally:
+            self._last_sensor_sync = datetime.now()
+            self._updating_from_sensor = False
 
     async def _sync_from_sensor(self):
         s = self.hass.states.get(self._sensor_power)
@@ -131,31 +145,31 @@ class ClimateBroadlink(ClimateEntity, RestoreEntity):
             return
 
         aberto = s.state in ["on", "true", "ligado"]
-
         modo_atual = self._hvac_mode
+
+        novo = None
 
         # 1) Ar ligado no HA e sensor FECHOU → DESLIGAR
         if modo_atual != HVACMode.OFF and not aberto:
-            self._hvac_mode = HVACMode.OFF
-            self.async_write_ha_state()
-            return
+            novo = HVACMode.OFF
 
         # 2) Ar desligado no HA e sensor ABRIU → LIGAR COMO COOL
-        if modo_atual == HVACMode.OFF and aberto:
-            self._hvac_mode = HVACMode.COOL
+        elif modo_atual == HVACMode.OFF and aberto:
+            novo = HVACMode.COOL
+
+        if novo and novo != self._hvac_mode:
+            _LOGGER.info("[%s] Sync sensor → %s", self._name, novo)
+            self._hvac_mode = novo
             self.async_write_ha_state()
-            return
-
-        # 3) OFF + fechado → nada
-        # 4) != OFF + aberto → nada
-        return
-
 
     # --------------------------------------------------
     # COMANDOS
     # --------------------------------------------------
 
     async def async_set_hvac_mode(self, hvac_mode):
+        if hvac_mode == self._hvac_mode:
+            return
+
         self._hvac_mode = hvac_mode
 
         if hvac_mode == HVACMode.OFF:
@@ -167,12 +181,19 @@ class ClimateBroadlink(ClimateEntity, RestoreEntity):
 
     async def async_set_temperature(self, **kwargs):
         temp = int(kwargs.get("temperature"))
+
+        if temp == self._target_temperature:
+            return
+
         self._target_temperature = temp
 
         await self._send_combined()
         self.async_write_ha_state()
 
     async def async_set_fan_mode(self, fan_mode):
+        if fan_mode == self._fan_mode:
+            return
+
         self._fan_mode = fan_mode
 
         await self._send_combined()
@@ -195,7 +216,6 @@ class ClimateBroadlink(ClimateEntity, RestoreEntity):
             }.get(self._fan_mode, "auto")
 
             mode = str(self._hvac_mode).lower()
-
             key = f"{mode}_{fan}_{self._target_temperature}"
 
         await self._send(key)
