@@ -2,9 +2,17 @@ import voluptuous as vol
 from homeassistant import config_entries
 from homeassistant.core import callback
 from homeassistant.helpers import selector
-from homeassistant.components.climate.const import HVACMode, FAN_LOW, FAN_MEDIUM, FAN_HIGH, FAN_AUTO, FAN_FOCUS
+from homeassistant.components.climate.const import (
+    HVACMode,
+    FAN_LOW,
+    FAN_MEDIUM,
+    FAN_HIGH,
+    FAN_AUTO,
+    FAN_FOCUS,
+)
 
 from .const import DOMAIN
+
 
 class ClimateBroadlinkConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     VERSION = 1
@@ -28,13 +36,11 @@ class ClimateBroadlinkConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             vol.Required("remote"): str,
 
             vol.Required("hvac_modes", default=[
-                HVACMode.OFF,
                 HVACMode.COOL,
                 HVACMode.HEAT,
             ]): selector.SelectSelector(
                 selector.SelectSelectorConfig(
                     options=[
-                        HVACMode.OFF,
                         HVACMode.COOL,
                         HVACMode.HEAT,
                         HVACMode.DRY,
@@ -45,7 +51,7 @@ class ClimateBroadlinkConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     mode="dropdown",
                 )
             ),
-  
+
             vol.Required("fan_modes", default=[
                 FAN_LOW,
                 FAN_MEDIUM,
@@ -68,7 +74,7 @@ class ClimateBroadlinkConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 selector.EntitySelectorConfig(domain="sensor")
             ),
 
-             vol.Optional("power_sensor"): selector.EntitySelector(
+            vol.Optional("power_sensor"): selector.EntitySelector(
                 selector.EntitySelectorConfig(domain="binary_sensor")
             ),
         })
@@ -78,3 +84,69 @@ class ClimateBroadlinkConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             data_schema=schema,
             errors=errors
         )
+
+    # 👇 LIGAÇÃO COM OPTIONS FLOW
+    @staticmethod
+    @callback
+    def async_get_options_flow(entry):
+        return ClimateBroadlinkOptionsFlow(entry)
+
+
+# ------------------------------------------------------
+# OPTIONS FLOW – editar depois de criado
+# ------------------------------------------------------
+
+class ClimateBroadlinkOptionsFlow(config_entries.OptionsFlow):
+
+    def __init__(self, entry):
+        self.entry = entry
+
+    async def async_step_init(self, user_input=None):
+        if user_input is not None:
+            return self.async_create_entry(title="", data=user_input)
+
+        options = {**self.entry.data, **self.entry.options}
+
+        schema = vol.Schema({
+            vol.Optional("hvac_modes", default=options.get("hvac_modes", [])):
+                selector.SelectSelector(
+                    selector.SelectSelectorConfig(
+                        options=[
+                            HVACMode.COOL,
+                            HVACMode.HEAT,
+                            HVACMode.DRY,
+                            HVACMode.FAN_ONLY,
+                            HVACMode.AUTO,
+                        ],
+                        multiple=True,
+                        mode="dropdown",
+                    )
+                ),
+
+            vol.Optional("fan_modes", default=options.get("fan_modes", [])):
+                selector.SelectSelector(
+                    selector.SelectSelectorConfig(
+                        options=[
+                            FAN_LOW,
+                            FAN_MEDIUM,
+                            FAN_HIGH,
+                            FAN_AUTO,
+                            FAN_FOCUS,
+                        ],
+                        multiple=True,
+                        mode="dropdown",
+                    )
+                ),
+
+            vol.Optional("temp_sensor", default=options.get("temp_sensor")):
+                selector.EntitySelector(
+                    selector.EntitySelectorConfig(domain="sensor")
+                ),
+
+            vol.Optional("power_sensor", default=options.get("power_sensor")):
+                selector.EntitySelector(
+                    selector.EntitySelectorConfig(domain="binary_sensor")
+                ),
+        })
+
+        return self.async_show_form(step_id="init", data_schema=schema)
