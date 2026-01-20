@@ -18,10 +18,15 @@ from .const import DOMAIN
 class ClimateBroadlinkConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     VERSION = 1
 
+    # --------------------------------------------------
+    # FLUXO DE CRIAÇÃO
+    # --------------------------------------------------
+
     async def async_step_user(self, user_input=None):
         if user_input is not None:
             data = user_input.copy()
 
+            # 🔥 Conversão final – é aqui que a mágica acontece
             data["temp_sensor"] = data.get("temp_sensor") or None
             data["power_sensor"] = data.get("power_sensor") or None
 
@@ -74,18 +79,13 @@ class ClimateBroadlinkConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 )
             ),
 
+            # ✅ Sem allow_none, sem Any – padrão suportado
             vol.Optional("temp_sensor"): selector.EntitySelector(
-                selector.EntitySelectorConfig(
-                    domain="sensor",
-                    allow_none=True,
-                )
+                selector.EntitySelectorConfig(domain="sensor")
             ),
 
             vol.Optional("power_sensor"): selector.EntitySelector(
-                selector.EntitySelectorConfig(
-                    domain="binary_sensor",
-                    allow_none=True,
-                )
+                selector.EntitySelectorConfig(domain="binary_sensor")
             ),
         })
 
@@ -113,15 +113,18 @@ class ClimateBroadlinkOptionsFlow(config_entries.OptionsFlow):
         if user_input is not None:
             data = user_input.copy()
 
+            # 🔥 Conversão crítica
             data["temp_sensor"] = data.get("temp_sensor") or None
             data["power_sensor"] = data.get("power_sensor") or None
 
             return self.async_create_entry(title="", data=data)
 
+        # Merge do que já existe
         options = {**self.entry.data, **self.entry.options}
 
         schema = vol.Schema({
 
+            # 🆕 Agora editáveis
             vol.Optional(
                 "controller",
                 default=options.get("controller"),
@@ -169,24 +172,19 @@ class ClimateBroadlinkOptionsFlow(config_entries.OptionsFlow):
                 )
             ),
 
+            # 🔥 PONTO CENTRAL: default "" → vira None no submit
             vol.Optional(
                 "temp_sensor",
-                default=options.get("temp_sensor"),
+                default=options.get("temp_sensor") or "",
             ): selector.EntitySelector(
-                selector.EntitySelectorConfig(
-                    domain="sensor",
-                    allow_none=True,
-                )
+                selector.EntitySelectorConfig(domain="sensor")
             ),
 
             vol.Optional(
                 "power_sensor",
-                default=options.get("power_sensor"),
+                default=options.get("power_sensor") or "",
             ): selector.EntitySelector(
-                selector.EntitySelectorConfig(
-                    domain="binary_sensor",
-                    allow_none=True,
-                )
+                selector.EntitySelectorConfig(domain="binary_sensor")
             ),
         })
 
