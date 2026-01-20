@@ -15,19 +15,101 @@ from homeassistant.components.climate.const import (
 from .const import DOMAIN
 
 
-class ClimateBroadlinkConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
+class ClimateIRConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     VERSION = 1
 
-    # --------------------------------------------------
-    # CRIAÇÃO
-    # --------------------------------------------------
+    # ----------------------------------------------
+    # PASSO 1 – escolher backend
+    # ----------------------------------------------
 
     async def async_step_user(self, user_input=None):
         if user_input is not None:
-            data = user_input.copy()
+            self.context["backend"] = user_input["ir_backend"]
 
-            data["temp_sensor"] = data.get("temp_sensor") or None
-            data["power_sensor"] = data.get("power_sensor") or None
+            if user_input["ir_backend"] == "broadlink":
+                return await self.async_step_broadlink()
+
+            return await self.async_step_qa()
+
+        schema = vol.Schema({
+            vol.Required("name"): str,
+
+            vol.Required("ir_backend"): selector.SelectSelector(
+                selector.SelectSelectorConfig(
+                    options=["broadlink", "qa"],
+                    mode="dropdown",
+                )
+            ),
+        })
+
+        return self.async_show_form(
+            step_id="user",
+            data_schema=schema,
+        )
+
+    # ----------------------------------------------
+    # PASSO 2A – BROADLINK
+    # ----------------------------------------------
+
+    async def async_step_broadlink(self, user_input=None):
+        if user_input is not None:
+            self.context["backend_data"] = user_input
+            return await self.async_step_common()
+
+        schema = vol.Schema({
+            vol.Required("controller"): selector.EntitySelector(
+                selector.EntitySelectorConfig(domain="remote")
+            ),
+
+            vol.Required("controlled_device"): str,
+        })
+
+        return self.async_show_form(
+            step_id="broadlink",
+            data_schema=schema,
+        )
+
+    # ----------------------------------------------
+    # PASSO 2B – QA
+    # ----------------------------------------------
+
+    async def async_step_qa(self, user_input=None):
+        if user_input is not None:
+            self.context["backend_data"] = user_input
+            return await self.async_step_common()
+
+        schema = vol.Schema({
+            vol.Required("qa_profile"): str,
+
+            vol.Required("controlled_device"): str,
+
+            vol.Required("qa_entity"): selector.EntitySelector(
+                selector.EntitySelectorConfig(domain="text")
+            ),
+        })
+
+        return self.async_show_form(
+            step_id="qa",
+            data_schema=schema,
+        )
+
+    # ----------------------------------------------
+    # PASSO 3 – COMUM
+    # ----------------------------------------------
+
+    async def async_step_common(self, user_input=None):
+        if user_input is not None:
+
+            data = {
+                "name": self.context["title_placeholders"]["name"]
+                if "title_placeholders" in self.context
+                else "IR Climate",
+
+                "ir_backend": self.context["backend"],
+            }
+
+            data.update(self.context["backend_data"])
+            data.update(user_input)
 
             return self.async_create_entry(
                 title=data["name"],
@@ -35,24 +117,10 @@ class ClimateBroadlinkConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             )
 
         schema = vol.Schema({
-            vol.Required("name"): str,
-
-            vol.Required("ir_backend", default="broadlink"): selector.SelectSelector(
-                selector.SelectSelectorConfig(
-                    options=["broadlink", "qa"],
-                    mode="dropdown",
-                )
-            ),
-
-            vol.Required("controller"): selector.EntitySelector(
-                selector.EntitySelectorConfig(domain="remote")
-            ),
-
-            vol.Required("remote"): str,
 
             vol.Required(
                 "hvac_modes",
-                default=[HVACMode.OFF, HVACMode.COOL, HVACMode.HEAT],
+                default=[HVACMode.OFF, HVACMode.COOL],
             ): selector.SelectSelector(
                 selector.SelectSelectorConfig(
                     options=[
@@ -64,7 +132,6 @@ class ClimateBroadlinkConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                         HVACMode.AUTO,
                     ],
                     multiple=True,
-                    mode="dropdown",
                 )
             ),
 
@@ -81,58 +148,49 @@ class ClimateBroadlinkConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                         FAN_FOCUS,
                     ],
                     multiple=True,
-                    mode="dropdown",
                 )
             ),
 
-            vol.Optional("temp_sensor", default=""): str,
+            vol.Optional("temp_sensor"): selector.EntitySelector(
+                selector.EntitySelectorConfig(domain="sensor")
+            ),
 
-            vol.Optional("power_sensor", default=""): str,
+            vol.Optional("power_sensor"): selector.EntitySelector(
+                selector.EntitySelectorConfig(domain="binary_sensor")
+            ),
         })
 
         return self.async_show_form(
-            step_id="user",
+            step_id="common",
             data_schema=schema,
         )
+
+    # ----------------------------------------------
+    # OPTIONS FLOW – edição sem trocar backend
+    # ----------------------------------------------
 
     @staticmethod
     @callback
     def async_get_options_flow(entry):
-        return ClimateBroadlinkOptionsFlow(entry)
+        return ClimateIROptionsFlow(entry)
 
 
-# ------------------------------------------------------
-# EDIÇÃO (OPTIONS)
-# ------------------------------------------------------
-
-class ClimateBroadlinkOptionsFlow(config_entries.OptionsFlow):
+class ClimateIROptionsFlow(config_entries.OptionsFlow):
 
     def __init__(self, entry):
         self.entry = entry
 
     async def async_step_init(self, user_input=None):
         if user_input is not None:
-            data = user_input.copy()
-
-            data["temp_sensor"] = data.get("temp_sensor") or None
-            data["power_sensor"] = data.get("power_sensor") or None
-
-            return self.async_create_entry(title="", data=data)
+            return self.async_create_entry(title="", data=user_input)
 
         options = {**self.entry.data, **self.entry.options}
 
         schema = vol.Schema({
 
             vol.Optional(
-                "controller",
-                default=options.get("controller"),
-            ): selector.EntitySelector(
-                selector.EntitySelectorConfig(domain="remote")
-            ),
-
-            vol.Optional(
-                "remote",
-                default=options.get("remote"),
+                "controlled_device",
+                default=options.get("controlled_device"),
             ): str,
 
             vol.Optional(
@@ -149,7 +207,6 @@ class ClimateBroadlinkOptionsFlow(config_entries.OptionsFlow):
                         HVACMode.AUTO,
                     ],
                     multiple=True,
-                    mode="dropdown",
                 )
             ),
 
@@ -166,19 +223,8 @@ class ClimateBroadlinkOptionsFlow(config_entries.OptionsFlow):
                         FAN_FOCUS,
                     ],
                     multiple=True,
-                    mode="dropdown",
                 )
             ),
-
-            vol.Optional(
-                "temp_sensor",
-                default=options.get("temp_sensor") or "",
-            ): str,
-
-            vol.Optional(
-                "power_sensor",
-                default=options.get("power_sensor") or "",
-            ): str,
         })
 
         return self.async_show_form(
