@@ -26,11 +26,8 @@ class ClimateBroadlinkConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             # --- NORMALIZAÇÃO DOS CAMPOS OPCIONAIS ---
             data = user_input.copy()
 
-            if not data.get("temp_sensor"):
-                data["temp_sensor"] = None
-
-            if not data.get("power_sensor"):
-                data["power_sensor"] = None
+            data["temp_sensor"] = data.get("temp_sensor") or None
+            data["power_sensor"] = data.get("power_sensor") or None
             # ----------------------------------------
 
             return self.async_create_entry(
@@ -85,15 +82,21 @@ class ClimateBroadlinkConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             vol.Optional(
                 "temp_sensor",
                 default=UNDEFINED,
-            ): selector.EntitySelector(
-                selector.EntitySelectorConfig(domain="sensor")
+            ): vol.Any(
+                None,
+                selector.EntitySelector(
+                    selector.EntitySelectorConfig(domain="sensor")
+                )
             ),
 
             vol.Optional(
                 "power_sensor",
                 default=UNDEFINED,
-            ): selector.EntitySelector(
-                selector.EntitySelectorConfig(domain="binary_sensor")
+            ): vol.Any(
+                None,
+                selector.EntitySelector(
+                    selector.EntitySelectorConfig(domain="binary_sensor")
+                )
             ),
         })
 
@@ -122,11 +125,8 @@ class ClimateBroadlinkOptionsFlow(config_entries.OptionsFlow):
         if user_input is not None:
             data = user_input.copy()
 
-            if "temp_sensor" not in data or data.get("temp_sensor") in ("", None):
-                data["temp_sensor"] = None
-
-            if "power_sensor" not in data or data.get("power_sensor") in ("", None):
-                data["power_sensor"] = None
+            data["temp_sensor"] = data.get("temp_sensor") or None
+            data["power_sensor"] = data.get("power_sensor") or None
 
             return self.async_create_entry(title="", data=data)
 
@@ -170,16 +170,22 @@ class ClimateBroadlinkOptionsFlow(config_entries.OptionsFlow):
 
             vol.Optional(
                 "temp_sensor",
-                default=options.get("temp_sensor") or "",
-            ): selector.EntitySelector(
-                selector.EntitySelectorConfig(domain="sensor")
+                default=options.get("temp_sensor") or None,
+            ): vol.Any(
+                None,
+                selector.EntitySelector(
+                    selector.EntitySelectorConfig(domain="sensor")
+                )
             ),
 
             vol.Optional(
                 "power_sensor",
-                default=options.get("power_sensor") or "",
-            ): selector.EntitySelector(
-                selector.EntitySelectorConfig(domain="binary_sensor")
+                default=options.get("power_sensor") or None,
+            ): vol.Any(
+                None,
+                selector.EntitySelector(
+                    selector.EntitySelectorConfig(domain="binary_sensor")
+                )
             ),
         })
 
