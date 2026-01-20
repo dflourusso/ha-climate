@@ -19,18 +19,15 @@ class ClimateBroadlinkConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     VERSION = 1
 
     # --------------------------------------------------
-    # FLUXO DE CRIAÇÃO
+    # CRIAÇÃO
     # --------------------------------------------------
 
     async def async_step_user(self, user_input=None):
         if user_input is not None:
             data = user_input.copy()
 
-            if not data.get("temp_sensor"):
-                data["temp_sensor"] = None
-
-            if not data.get("power_sensor"):
-                data["power_sensor"] = None
+            data["temp_sensor"] = data.get("temp_sensor") or None
+            data["power_sensor"] = data.get("power_sensor") or None
 
             return self.async_create_entry(
                 title=data["name"],
@@ -81,13 +78,9 @@ class ClimateBroadlinkConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 )
             ),
 
-            vol.Optional("temp_sensor"): selector.EntitySelector(
-                selector.EntitySelectorConfig(domain="sensor")
-            ),
+            vol.Optional("temp_sensor", default=""): str,
 
-            vol.Optional("power_sensor"): selector.EntitySelector(
-                selector.EntitySelectorConfig(domain="binary_sensor")
-            ),
+            vol.Optional("power_sensor", default=""): str,
         })
 
         return self.async_show_form(
@@ -102,7 +95,7 @@ class ClimateBroadlinkConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
 
 # ------------------------------------------------------
-# OPTIONS FLOW – EDIÇÃO DEPOIS DE CRIADO
+# EDIÇÃO (OPTIONS)
 # ------------------------------------------------------
 
 class ClimateBroadlinkOptionsFlow(config_entries.OptionsFlow):
@@ -114,11 +107,8 @@ class ClimateBroadlinkOptionsFlow(config_entries.OptionsFlow):
         if user_input is not None:
             data = user_input.copy()
 
-            if not data.get("temp_sensor"):
-                data["temp_sensor"] = None
-
-            if not data.get("power_sensor"):
-                data["power_sensor"] = None
+            data["temp_sensor"] = data.get("temp_sensor") or None
+            data["power_sensor"] = data.get("power_sensor") or None
 
             return self.async_create_entry(title="", data=data)
 
@@ -176,16 +166,12 @@ class ClimateBroadlinkOptionsFlow(config_entries.OptionsFlow):
             vol.Optional(
                 "temp_sensor",
                 default=options.get("temp_sensor") or "",
-            ): selector.EntitySelector(
-                selector.EntitySelectorConfig(domain="sensor")
-            ),
+            ): str,
 
             vol.Optional(
                 "power_sensor",
                 default=options.get("power_sensor") or "",
-            ): selector.EntitySelector(
-                selector.EntitySelectorConfig(domain="binary_sensor")
-            ),
+            ): str,
         })
 
         return self.async_show_form(
