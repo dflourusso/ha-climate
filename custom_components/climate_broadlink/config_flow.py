@@ -23,12 +23,10 @@ class ClimateBroadlinkConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         errors = {}
 
         if user_input is not None:
-            # --- NORMALIZAÇÃO DOS CAMPOS OPCIONAIS ---
             data = user_input.copy()
 
             data["temp_sensor"] = data.get("temp_sensor") or None
             data["power_sensor"] = data.get("power_sensor") or None
-            # ----------------------------------------
 
             return self.async_create_entry(
                 title=data["name"],
@@ -79,20 +77,14 @@ class ClimateBroadlinkConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 )
             ),
 
-            vol.Optional(
-                "temp_sensor",
-                default=UNDEFINED,
-            ): vol.Any(
+            vol.Optional("temp_sensor", default=UNDEFINED): vol.Any(
                 None,
                 selector.EntitySelector(
                     selector.EntitySelectorConfig(domain="sensor")
                 )
             ),
 
-            vol.Optional(
-                "power_sensor",
-                default=UNDEFINED,
-            ): vol.Any(
+            vol.Optional("power_sensor", default=UNDEFINED): vol.Any(
                 None,
                 selector.EntitySelector(
                     selector.EntitySelectorConfig(domain="binary_sensor")
@@ -113,7 +105,7 @@ class ClimateBroadlinkConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
 
 # ------------------------------------------------------
-# OPTIONS FLOW – editar depois de criado
+# OPTIONS FLOW – EDIÇÃO COMPLETA
 # ------------------------------------------------------
 
 class ClimateBroadlinkOptionsFlow(config_entries.OptionsFlow):
@@ -133,6 +125,19 @@ class ClimateBroadlinkOptionsFlow(config_entries.OptionsFlow):
         options = {**self.entry.data, **self.entry.options}
 
         schema = vol.Schema({
+
+            vol.Optional(
+                "controller",
+                default=options.get("controller"),
+            ): selector.EntitySelector(
+                selector.EntitySelectorConfig(domain="remote")
+            ),
+
+            vol.Optional(
+                "remote",
+                default=options.get("remote"),
+            ): str,
+
             vol.Optional(
                 "hvac_modes",
                 default=options.get("hvac_modes", []),
