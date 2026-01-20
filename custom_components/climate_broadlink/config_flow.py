@@ -175,14 +175,14 @@ class ClimateBroadlinkOptionsFlow(config_entries.OptionsFlow):
 
             vol.Optional(
                 "temp_sensor",
-                default=options.get("temp_sensor"),
+                default=options.get("temp_sensor") or "",
             ): selector.EntitySelector(
                 selector.EntitySelectorConfig(domain="sensor")
             ),
 
             vol.Optional(
                 "power_sensor",
-                default=options.get("power_sensor"),
+                default=options.get("power_sensor") or "",
             ): selector.EntitySelector(
                 selector.EntitySelectorConfig(domain="binary_sensor")
             ),
