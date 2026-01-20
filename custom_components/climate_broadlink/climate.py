@@ -14,6 +14,7 @@ from homeassistant.components.climate.const import (
 )
 from homeassistant.const import UnitOfTemperature
 from homeassistant.helpers.restore_state import RestoreEntity
+
 from homeassistant.helpers.event import async_track_state_change_event
 
 _LOGGER = logging.getLogger(__name__)
@@ -34,7 +35,7 @@ class ClimateBroadlink(ClimateEntity, RestoreEntity):
         self._fan_mode = FAN_LOW
         self._target_temperature = 24
 
-        # 🧠 PROTEÇÕES CONTRA LOOP
+        # 🧠 Proteções contra loop
         self._booting = True
         self._updating_from_sensor = False
         self._last_sensor_sync = datetime.min
@@ -52,7 +53,7 @@ class ClimateBroadlink(ClimateEntity, RestoreEntity):
         self._attr_fan_modes = config.get("fan_modes", [])
 
     # --------------------------------------------------
-    # RESTORE
+    # RESTORE + LISTENERS
     # --------------------------------------------------
 
     async def async_added_to_hass(self):
@@ -66,16 +67,16 @@ class ClimateBroadlink(ClimateEntity, RestoreEntity):
             except Exception:
                 self._hvac_mode = HVACMode.OFF
 
-        # 🕐 Esperar o HA estabilizar
+        # Esperar HA estabilizar
         await asyncio.sleep(2)
         self._booting = False
 
+        # --- MONITOR POWER SENSOR ---
         if self._sensor_power:
 
             async def sensor_changed(event):
                 await self._safe_sensor_sync()
 
-            # ✅ FORMA CORRETA ATUAL
             self.async_on_remove(
                 async_track_state_change_event(
                     self.hass,
@@ -85,6 +86,21 @@ class ClimateBroadlink(ClimateEntity, RestoreEntity):
             )
 
             await self._safe_sensor_sync()
+
+        # --- 🟢 MONITOR TEMPERATURE SENSOR ---
+        if self._sensor_temp:
+
+            async def temp_changed(event):
+                # Atualiza apenas exibição
+                self.async_write_ha_state()
+
+            self.async_on_remove(
+                async_track_state_change_event(
+                    self.hass,
+                    [self._sensor_temp],
+                    temp_changed,
+                )
+            )
 
     # --------------------------------------------------
     # PROPRIEDADES
@@ -119,7 +135,7 @@ class ClimateBroadlink(ClimateEntity, RestoreEntity):
                 return None
 
     # --------------------------------------------------
-    # 🧠 SINCRONIZAÇÃO SEGURA
+    # 🧠 SINCRONIZAÇÃO SEGURA (POWER SENSOR)
     # --------------------------------------------------
 
     async def _safe_sensor_sync(self):
@@ -149,9 +165,11 @@ class ClimateBroadlink(ClimateEntity, RestoreEntity):
 
         novo = None
 
+        # 1) Ar ligado no HA e sensor FECHOU → DESLIGAR
         if modo_atual != HVACMode.OFF and not aberto:
             novo = HVACMode.OFF
 
+        # 2) Ar desligado no HA e sensor ABRIU → LIGAR COMO COOL
         elif modo_atual == HVACMode.OFF and aberto:
             novo = HVACMode.COOL
 
