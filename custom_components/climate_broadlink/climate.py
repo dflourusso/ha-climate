@@ -34,9 +34,9 @@ class ClimateBroadlink(ClimateEntity, RestoreEntity):
         self._fan_mode = FAN_LOW
         self._target_temperature = 24
 
+        # Proteções contra loop
         self._booting = True
         self._updating_from_sensor = False
-
         self._pending_sync_unsub = None
 
         self._attr_name = self._name
@@ -66,9 +66,11 @@ class ClimateBroadlink(ClimateEntity, RestoreEntity):
             except Exception:
                 self._hvac_mode = HVACMode.OFF
 
+        # Esperar HA estabilizar
         await asyncio.sleep(2)
         self._booting = False
 
+        # --- MONITOR POWER SENSOR ---
         if self._sensor_power:
 
             async def sensor_changed(event):
@@ -84,6 +86,7 @@ class ClimateBroadlink(ClimateEntity, RestoreEntity):
 
             await self._schedule_sensor_sync()
 
+        # --- MONITOR TEMPERATURE SENSOR ---
         if self._sensor_temp:
 
             async def temp_changed(event):
@@ -130,7 +133,7 @@ class ClimateBroadlink(ClimateEntity, RestoreEntity):
                 return None
 
     # --------------------------------------------------
-    # DEBOUNCE
+    # DEBOUNCE INTELIGENTE
     # --------------------------------------------------
 
     async def _schedule_sensor_sync(self):
@@ -162,7 +165,7 @@ class ClimateBroadlink(ClimateEntity, RestoreEntity):
             self._pending_sync_unsub = None
 
     # --------------------------------------------------
-    # SINCRONIZAÇÃO
+    # SINCRONIZAÇÃO APENAS DE ESTADO
     # --------------------------------------------------
 
     async def _sync_from_sensor(self):
@@ -175,9 +178,11 @@ class ClimateBroadlink(ClimateEntity, RestoreEntity):
 
         novo = None
 
+        # Sensor FECHOU → refletir como OFF
         if modo_atual != HVACMode.OFF and not aberto:
             novo = HVACMode.OFF
 
+        # Sensor ABRIU → refletir como COOL
         elif modo_atual == HVACMode.OFF and aberto:
             novo = HVACMode.COOL
 
@@ -187,7 +192,7 @@ class ClimateBroadlink(ClimateEntity, RestoreEntity):
             self.async_write_ha_state()
 
     # --------------------------------------------------
-    # COMANDOS
+    # COMANDOS DO USUÁRIO
     # --------------------------------------------------
 
     async def async_set_hvac_mode(self, hvac_mode):
@@ -224,7 +229,7 @@ class ClimateBroadlink(ClimateEntity, RestoreEntity):
         self.async_write_ha_state()
 
     # --------------------------------------------------
-    # IR
+    # MONTAGEM DO COMANDO IR
     # --------------------------------------------------
 
     async def _send_combined(self):
@@ -244,13 +249,11 @@ class ClimateBroadlink(ClimateEntity, RestoreEntity):
 
         await self._send(key)
 
+    # --------------------------------------------------
+    # ENVIO REAL PARA BROADLINK
+    # --------------------------------------------------
+
     async def _send(self, command):
-
-        if self._sensor_power:
-            s = self.hass.states.get(self._sensor_power)
-            if s and command == "off" and s.state == "off":
-                return
-
         _LOGGER.info(
             "[%s] IR -> %s (controller=%s device=%s)",
             self._name,
@@ -270,6 +273,10 @@ class ClimateBroadlink(ClimateEntity, RestoreEntity):
             blocking=True,
         )
 
+
+# ------------------------------------------------------
+# SETUP
+# ------------------------------------------------------
 
 async def async_setup_entry(hass, entry, async_add_entities):
     config = {**entry.data, **entry.options}
