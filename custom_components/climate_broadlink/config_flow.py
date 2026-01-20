@@ -49,11 +49,10 @@ class ClimateBroadlinkConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
             vol.Required(
                 "hvac_modes",
-                default=[HVACMode.OFF, HVACMode.COOL, HVACMode.HEAT],
+                default=[HVACMode.COOL, HVACMode.HEAT],
             ): selector.SelectSelector(
                 selector.SelectSelectorConfig(
                     options=[
-                        HVACMode.OFF,
                         HVACMode.COOL,
                         HVACMode.HEAT,
                         HVACMode.DRY,
@@ -120,15 +119,13 @@ class ClimateBroadlinkOptionsFlow(config_entries.OptionsFlow):
 
     async def async_step_init(self, user_input=None):
         if user_input is not None:
-            # --- NORMALIZAÇÃO TAMBÉM NO OPTIONS ---
             data = user_input.copy()
 
-            if not data.get("temp_sensor"):
+            if "temp_sensor" not in data or data.get("temp_sensor") in ("", None):
                 data["temp_sensor"] = None
 
-            if not data.get("power_sensor"):
+            if "power_sensor" not in data or data.get("power_sensor") in ("", None):
                 data["power_sensor"] = None
-            # --------------------------------------
 
             return self.async_create_entry(title="", data=data)
 
@@ -141,7 +138,6 @@ class ClimateBroadlinkOptionsFlow(config_entries.OptionsFlow):
             ): selector.SelectSelector(
                 selector.SelectSelectorConfig(
                     options=[
-                        HVACMode.OFF,
                         HVACMode.COOL,
                         HVACMode.HEAT,
                         HVACMode.DRY,
@@ -172,14 +168,14 @@ class ClimateBroadlinkOptionsFlow(config_entries.OptionsFlow):
 
             vol.Optional(
                 "temp_sensor",
-                default=options.get("temp_sensor") or UNDEFINED,
+                default=options.get("temp_sensor") or "",
             ): selector.EntitySelector(
                 selector.EntitySelectorConfig(domain="sensor")
             ),
 
             vol.Optional(
                 "power_sensor",
-                default=options.get("power_sensor") or UNDEFINED,
+                default=options.get("power_sensor") or "",
             ): selector.EntitySelector(
                 selector.EntitySelectorConfig(domain="binary_sensor")
             ),
