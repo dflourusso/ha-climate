@@ -1,4 +1,4 @@
-DOMAIN = "climate_ir"
+DOMAIN = "climate_broadlink"
 
 DEFAULT_MIN_TEMP = 18
 DEFAULT_MAX_TEMP = 25

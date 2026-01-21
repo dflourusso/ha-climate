@@ -1,6 +1,6 @@
 {
-  "domain": "climate_ir",
-  "name": "Climate IR universal",
+  "domain": "climate_broadlink",
+  "name": "Climate Broadlink",
   "version": "1.3.21",
   "iot_class": "local_polling",
   "config_flow": true

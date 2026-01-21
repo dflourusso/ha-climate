@@ -37,13 +37,6 @@ class ClimateBroadlinkConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         schema = vol.Schema({
             vol.Required("name"): str,
 
-            vol.Required("ir_backend", default="broadlink"): selector.SelectSelector(
-                selector.SelectSelectorConfig(
-                    options=["broadlink", "qa"],
-                    mode="dropdown",
-                )
-            ),
-
             vol.Required("controller"): selector.EntitySelector(
                 selector.EntitySelectorConfig(domain="remote")
             ),
