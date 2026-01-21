@@ -19,7 +19,7 @@ from homeassistant.helpers.event import async_track_state_change_event, async_ca
 _LOGGER = logging.getLogger(__name__)
 
 
-class ClimateBroadlink(ClimateEntity, RestoreEntity):
+class ClimateInfrared(ClimateEntity, RestoreEntity):
 
     def __init__(self, hass, config):
         self.hass = hass
@@ -40,7 +40,7 @@ class ClimateBroadlink(ClimateEntity, RestoreEntity):
         self._pending_sync_unsub = None
 
         self._attr_name = self._name
-        self._attr_unique_id = f"climate_broadlink_{self._name}"
+        self._attr_unique_id = f"climate_ir_{self._name}"
         self._attr_temperature_unit = UnitOfTemperature.CELSIUS
 
         self._attr_supported_features = (
@@ -250,7 +250,7 @@ class ClimateBroadlink(ClimateEntity, RestoreEntity):
         await self._send(key)
 
     # --------------------------------------------------
-    # ENVIO REAL PARA BROADLINK
+    # ENVIO REAL PARA CONTROLE IR
     # --------------------------------------------------
 
     async def _send(self, command):
@@ -282,5 +282,5 @@ async def async_setup_entry(hass, entry, async_add_entities):
     config = {**entry.data, **entry.options}
 
     async_add_entities([
-        ClimateBroadlink(hass, config)
+        ClimateInfrared(hass, config)
     ])

@@ -15,7 +15,7 @@ from homeassistant.components.climate.const import (
 from .const import DOMAIN
 
 
-class ClimateBroadlinkConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
+class ClimateInfraredConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     VERSION = 1
 
     # --------------------------------------------------
@@ -91,14 +91,14 @@ class ClimateBroadlinkConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     @staticmethod
     @callback
     def async_get_options_flow(entry):
-        return ClimateBroadlinkOptionsFlow(entry)
+        return ClimateInfraredOptionsFlow(entry)
 
 
 # ------------------------------------------------------
 # EDIÇÃO (OPTIONS)
 # ------------------------------------------------------
 
-class ClimateBroadlinkOptionsFlow(config_entries.OptionsFlow):
+class ClimateInfraredOptionsFlow(config_entries.OptionsFlow):
 
     def __init__(self, entry):
         self.entry = entry

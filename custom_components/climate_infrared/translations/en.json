@@ -2,10 +2,10 @@
   "config": {
     "step": {
       "user": {
-        "title": "Add Broadlink Air Conditioner",
+        "title": "Add infrared controlled Air Conditioner",
         "data": {
           "name": "Name",
-          "controller": "Broadlink Controller",
+          "controller": "Remote Controller",
           "remote": "IR Device Name",
           "hvac_modes": "Available modes",
           "fan_modes": "Fan speeds",

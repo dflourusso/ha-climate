@@ -18,7 +18,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
 
     entry.async_on_unload(entry.add_update_listener(async_reload_entry))
 
-    _LOGGER.info("climate_broadlink carregado: %s", entry.title)
+    _LOGGER.info("climate_infrared carregado: %s", entry.title)
 
     return True
 
@@ -28,7 +28,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry):
 
 
 async def async_reload_entry(hass: HomeAssistant, entry: ConfigEntry):
-    _LOGGER.info("Recarregando climate_broadlink: %s", entry.title)
+    _LOGGER.info("Recarregando climate_infrared: %s", entry.title)
 
     await async_unload_entry(hass, entry)
     await async_setup_entry(hass, entry)

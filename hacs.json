@@ -1,11 +1,11 @@
 {
-  "name": "Climate broadlink",
+  "name": "Climate Infrared",
   "country": "BR",
   "homeassistant": "2023.8.0",
   "render_readme": true,
-  "filename": "climate_broadklink.zip",
+  "filename": "climate_infrared.zip",
   "domains": [
-    "climate_broadlink"
+    "climate_infrared"
   ],
   "iot_class": "Local Polling"
 }

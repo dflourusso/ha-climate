@@ -2,10 +2,10 @@
   "config": {
     "step": {
       "user": {
-        "title": "Adicionar Ar Condicionado Broadlink",
+        "title": "Adicionar Ar Condicionado controlado por infravermelho",
         "data": {
           "name": "Nome do ar",
-          "controller": "Controle Broadlink",
+          "controller": "Controle IR",
           "remote": "Nome do dispositivo IR a ser controlado",
           "hvac_modes": "Modos disponíveis",
           "fan_modes": "Velocidades do ventilador",
