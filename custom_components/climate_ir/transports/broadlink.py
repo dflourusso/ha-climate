@@ -12,7 +12,7 @@ class BroadlinkTransport(BaseIRTransport):
             "[Broadlink] IR -> %s (controller=%s device=%s)",
             command,
             self.config.get("controller"),
-            self.config.get("controlled_device"),
+            self.config.get("remote"),
         )
 
         await self.hass.services.async_call(
@@ -20,7 +20,7 @@ class BroadlinkTransport(BaseIRTransport):
             "send_command",
             {
                 "entity_id": self.config.get("controller"),
-                "device": self.config.get("controlled_device"),
+                "device": self.config.get("remote"),
                 "command": command,
             },
             blocking=True,
