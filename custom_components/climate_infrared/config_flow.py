@@ -26,6 +26,7 @@ class ClimateInfraredConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         if user_input is not None:
             data = user_input.copy()
 
+            # Normaliza opcionais
             data["temp_sensor"] = data.get("temp_sensor") or None
             data["power_sensor"] = data.get("power_sensor") or None
 
@@ -78,9 +79,19 @@ class ClimateInfraredConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 )
             ),
 
-            vol.Optional("temp_sensor", default=""): str,
+            vol.Optional("temp_sensor"): selector.EntitySelector(
+                selector.EntitySelectorConfig(
+                    domain="sensor",
+                    allow_none=True,
+                )
+            ),
 
-            vol.Optional("power_sensor", default=""): str,
+            vol.Optional("power_sensor"): selector.EntitySelector(
+                selector.EntitySelectorConfig(
+                    domain="binary_sensor",
+                    allow_none=True,
+                )
+            ),
         })
 
         return self.async_show_form(
@@ -107,6 +118,7 @@ class ClimateInfraredOptionsFlow(config_entries.OptionsFlow):
         if user_input is not None:
             data = user_input.copy()
 
+            # Normaliza opcionais
             data["temp_sensor"] = data.get("temp_sensor") or None
             data["power_sensor"] = data.get("power_sensor") or None
 
@@ -165,13 +177,23 @@ class ClimateInfraredOptionsFlow(config_entries.OptionsFlow):
 
             vol.Optional(
                 "temp_sensor",
-                default=options.get("temp_sensor") or "",
-            ): str,
+                default=options.get("temp_sensor"),
+            ): selector.EntitySelector(
+                selector.EntitySelectorConfig(
+                    domain="sensor",
+                    allow_none=True,
+                )
+            ),
 
             vol.Optional(
                 "power_sensor",
-                default=options.get("power_sensor") or "",
-            ): str,
+                default=options.get("power_sensor"),
+            ): selector.EntitySelector(
+                selector.EntitySelectorConfig(
+                    domain="binary_sensor",
+                    allow_none=True,
+                )
+            ),
         })
 
         return self.async_show_form(
