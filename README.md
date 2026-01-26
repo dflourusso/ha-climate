@@ -2,6 +2,11 @@
 
 Integração customizada para controlar **ar-condicionado via infravermelho (IR)** usando o componente `remote` do Home Assistant (Broadlink, ESPHome IR, Zigbee IR, etc).
 
+<img width="850" alt="Screenshot 2026-01-26 at 15 06 21" src="https://github.com/user-attachments/assets/6da28da0-06b9-4770-81f3-c1dece54e213" />
+
+<img width="350" alt="Screenshot 2026-01-26 at 15 04 57" src="https://github.com/user-attachments/assets/d80f0dc4-c308-4491-aeee-988e5f1ccb19" />
+
+
 Ela simula um `climate` real, com suporte a:
 - Modos HVAC (cool, heat, dry, fan, auto, off)
 - Velocidade do ventilador
