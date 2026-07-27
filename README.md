@@ -9,6 +9,7 @@ Integração customizada para controlar **ar-condicionado via infravermelho (IR)
 
 Ela simula um `climate` real, com suporte a:
 - Modos HVAC (cool, heat, dry, fan, auto, off)
+- `turn_on` / `turn_off` (restaura o último modo ativo)
 - Velocidade do ventilador
 - Temperatura alvo
 - Sensor externo de temperatura
@@ -25,6 +26,8 @@ Ela simula um `climate` real, com suporte a:
 - Sensores externos opcionais:
   - Temperatura real
   - Estado do equipamento (ligado/desligado)
+- `climate.turn_on` restaura o último modo HVAC ativo (fallback: cool)
+- `climate.turn_off` equivale a `set_hvac_mode(off)`
 - Proteção contra loops e storms de eventos
 - Debounce inteligente
 - Restore state após reboot
@@ -131,11 +134,22 @@ ligado
 ```
 
 🔁 Comportamento do Power Sensor
-Sensor	Climate Mode
-OFF → ON	muda para COOL
-ON → OFF	muda para OFF
+
+| Sensor | Climate Mode |
+|--------|--------------|
+| OFF → ON | restaura o último modo ativo (fallback: cool) |
+| ON → OFF | muda para OFF |
 
 👉 Não envia IR automaticamente (apenas reflete estado).
+
+# 🔌 turn_on / turn_off
+
+| Serviço | Comportamento |
+|---------|---------------|
+| `climate.turn_off` | `set_hvac_mode(off)` — envia IR `off` |
+| `climate.turn_on` | restaura o último modo HVAC ativo; se não houver histórico válido, usa `cool` |
+
+O último modo ativo também é persistido entre reboots (atributo `last_hvac_mode`).
 
 # 🛠️ Edição de Configuração
 

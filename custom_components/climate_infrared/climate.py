@@ -37,6 +37,7 @@ class ClimateInfrared(ClimateEntity, RestoreEntity):
         self._standalone_power_on = bool(config.get("standalone_power_on", False))
 
         self._hvac_mode = HVACMode.OFF
+        self._last_hvac_mode = HVACMode.COOL
         self._fan_mode = FAN_AUTO
         self._target_temperature = 24
 
@@ -51,7 +52,9 @@ class ClimateInfrared(ClimateEntity, RestoreEntity):
 
         self._attr_supported_features = (
             ClimateEntityFeature.TARGET_TEMPERATURE |
-            ClimateEntityFeature.FAN_MODE
+            ClimateEntityFeature.FAN_MODE |
+            ClimateEntityFeature.TURN_ON |
+            ClimateEntityFeature.TURN_OFF
         )
 
         self._attr_hvac_modes = config.get("hvac_modes", [])
@@ -71,6 +74,19 @@ class ClimateInfrared(ClimateEntity, RestoreEntity):
                 self._fan_mode = last.attributes.get("fan_mode", FAN_AUTO)
             except Exception:
                 self._hvac_mode = HVACMode.OFF
+
+            if self._hvac_mode != HVACMode.OFF:
+                self._last_hvac_mode = self._hvac_mode
+            else:
+                saved = last.attributes.get("last_hvac_mode")
+                if saved:
+                    try:
+                        restored = HVACMode(saved)
+                        if restored != HVACMode.OFF:
+                            self._last_hvac_mode = restored
+                    except Exception:
+                        pass
+
         self._target_temperature = int(
             max(self._min_temp, min(self._max_temp, int(self._target_temperature)))
         )
@@ -130,6 +146,12 @@ class ClimateInfrared(ClimateEntity, RestoreEntity):
     @property
     def hvac_mode(self):
         return self._hvac_mode
+
+    @property
+    def extra_state_attributes(self):
+        return {
+            "last_hvac_mode": self._last_hvac_mode,
+        }
 
     @property
     def fan_mode(self):
@@ -211,6 +233,20 @@ class ClimateInfrared(ClimateEntity, RestoreEntity):
     # SINCRONIZAÇÃO APENAS DE ESTADO
     # --------------------------------------------------
 
+    def _resolved_last_hvac_mode(self):
+        if (
+            self._last_hvac_mode
+            and self._last_hvac_mode != HVACMode.OFF
+            and self._last_hvac_mode in self._attr_hvac_modes
+        ):
+            return self._last_hvac_mode
+        if HVACMode.COOL in self._attr_hvac_modes:
+            return HVACMode.COOL
+        for mode in self._attr_hvac_modes:
+            if mode != HVACMode.OFF:
+                return mode
+        return HVACMode.COOL
+
     async def _sync_from_sensor(self):
         s = self.hass.states.get(self._sensor_power)
         if not s:
@@ -221,17 +257,20 @@ class ClimateInfrared(ClimateEntity, RestoreEntity):
 
         novo = None
 
-        # Sensor FECHOU → refletir como OFF
+        # Sensor FECHOU → refletir como OFF (mantém _last_hvac_mode)
         if modo_atual != HVACMode.OFF and not aberto:
+            self._last_hvac_mode = modo_atual
             novo = HVACMode.OFF
 
-        # Sensor ABRIU → refletir como COOL
+        # Sensor ABRIU → restaurar último modo ativo
         elif modo_atual == HVACMode.OFF and aberto:
-            novo = HVACMode.COOL
+            novo = self._resolved_last_hvac_mode()
 
         if novo and novo != self._hvac_mode:
             _LOGGER.info("[%s] Sync sensor → %s", self._name, novo)
             self._hvac_mode = novo
+            if novo != HVACMode.OFF:
+                self._last_hvac_mode = novo
             self.async_write_ha_state()
 
     # --------------------------------------------------
@@ -244,6 +283,11 @@ class ClimateInfrared(ClimateEntity, RestoreEntity):
 
         prev_mode = self._hvac_mode
         self._hvac_mode = hvac_mode
+
+        if hvac_mode != HVACMode.OFF:
+            self._last_hvac_mode = hvac_mode
+        elif prev_mode != HVACMode.OFF:
+            self._last_hvac_mode = prev_mode
 
         if hvac_mode == HVACMode.OFF:
             await self._send("off")
@@ -258,6 +302,14 @@ class ClimateInfrared(ClimateEntity, RestoreEntity):
             await self._send_combined()
 
         self.async_write_ha_state()
+
+    async def async_turn_on(self):
+        if self._hvac_mode != HVACMode.OFF:
+            return
+        await self.async_set_hvac_mode(self._resolved_last_hvac_mode())
+
+    async def async_turn_off(self):
+        await self.async_set_hvac_mode(HVACMode.OFF)
 
     async def async_set_temperature(self, **kwargs):
         temp = int(kwargs.get("temperature"))
